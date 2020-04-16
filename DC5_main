@@ -1,0 +1,63 @@
+import pandas as pd
+import numpy as np
+import string
+from nltk.corpus import stopwords
+from nltk import word_tokenize
+from nltk.stem import SnowballStemmer
+from nltk import WordNetLemmatizer
+
+# data importing
+data = pd.read_csv("ted talk data - Sheet1.csv")
+data = data.iloc[0:5, :]
+
+# --- DATA PRE-PROCESSING ---
+# removing stopwords & punctuation
+stopWords = stopwords.words()
+rowIndex = 0
+for transcript in data.iloc[:, 0]:
+    new_transcript = ""
+    if type(transcript) == float:
+        break
+    transcript = np.str.lower(transcript)
+    transcript = np.str.replace(transcript, "'", "")
+    text_tokens = word_tokenize(transcript)
+    for word in text_tokens:
+        if word not in string.punctuation:
+            if word not in stopWords:
+                new_transcript = new_transcript + " " + word
+    new_transcript = ("").join(new_transcript)
+    data.iloc[rowIndex, 0] = new_transcript
+    rowIndex += 1
+
+
+# Stemming & Lemmatizing
+sbStemmer = SnowballStemmer('english')
+def stemSentence(sentence):
+    token_words = word_tokenize(sentence)
+    stem_sentence = []
+    for word in token_words:
+        stem_sentence.append(sbStemmer.stem(word))
+        stem_sentence.append(" ")
+    return "".join(stem_sentence)
+
+
+wordnet_lemmatizer = WordNetLemmatizer()
+rowIndex = 0
+
+for transcript in data.iloc[:, 0]:
+    new_transcript = ""
+    for word in transcript:
+        lemWord = wordnet_lemmatizer.lemmatize(word)
+        new_transcript = new_transcript + lemWord
+    new_transcript = stemSentence(new_transcript)
+    data.iloc[rowIndex, 0] = new_transcript
+    rowIndex += 1
+print(data)
+
+# feature extraction
+
+# sentence input
+
+
+
+
