@@ -1,0 +1,155 @@
+import pandas as pd
+import numpy as np
+import string
+from nltk.corpus import stopwords
+from nltk import word_tokenize
+from nltk.stem import SnowballStemmer
+from nltk import WordNetLemmatizer
+
+# data importing
+data = pd.read_csv("ted talk data - Sheet1.csv")
+data = data.dropna()
+
+# --- DATA PRE-PROCESSING ---
+# removing stopwords & punctuation
+stopWords = stopwords.words()
+rowIndex = 0
+for transcript in data.iloc[:, 0]:
+    new_transcript = ""
+    if type(transcript) == float:
+        break
+    transcript = np.str.lower(transcript)
+    transcript = np.str.replace(transcript, "'", "")
+    text_tokens = word_tokenize(transcript)
+    for word in text_tokens:
+        if word not in string.punctuation:
+            if word not in stopWords:
+                if len(word) > 1:
+                    new_transcript = new_transcript + " " + word
+    new_transcript = ("").join(new_transcript)
+    data.iloc[rowIndex, 0] = new_transcript
+    rowIndex += 1
+
+
+# Stemming & Lemmatizing
+sbStemmer = SnowballStemmer('english')
+def stemSentence(sentence):
+    token_words = word_tokenize(sentence)
+    stem_sentence = []
+    for word in token_words:
+        stem_sentence.append(sbStemmer.stem(word))
+        stem_sentence.append(" ")
+    return "".join(stem_sentence)
+
+
+wordnet_lemmatizer = WordNetLemmatizer()
+rowIndex = 0
+
+for transcript in data.iloc[:, 0]:
+    new_transcript = ""
+    for word in transcript:
+        lemWord = wordnet_lemmatizer.lemmatize(word)
+        new_transcript = new_transcript + lemWord
+    new_transcript = stemSentence(new_transcript)
+    data.iloc[rowIndex, 0] = new_transcript
+    rowIndex += 1
+
+# feature extraction
+processedData = pd.DataFrame(data.iloc[:, 1])
+
+docFrequences = []
+for transcript in data.iloc[:, 0]:
+    DF = {}
+    tokens = word_tokenize(transcript)
+    for i in range(len(tokens)):
+        token = tokens[i]
+        try:
+            DF[token].add(i)
+        except:
+            DF[token] = {i}
+    for i in DF:
+        DF[i] = len(DF[i])
+    docFrequences.append(DF)
+processedData['DF'] = docFrequences
+
+
+# sentence input
+def search_interface(itteration_number):
+    if itteration_number == 1:
+        print('Welcome to TED-search, please input your search term below:')
+        search_phrase = input()
+        print('Thank you, please wait while your request is processed.')
+        return search_phrase
+    elif itteration_number == 0:
+        return 'Enjoy the ted talks, we will be here if you need more'
+    else:
+        print('Please enter the search term:')
+        search_phrase = input()
+        print('Thank you, your request is being processed')
+        return search_phrase
+
+
+def document_finder(search_phrase):
+    search_database = processedData
+    search_database["Term Frequency"] = np.zeros(len(search_database))
+
+    search_phrase = search_phrase.lower()
+    tokenizedInput = word_tokenize(search_phrase)
+    cleaned_input = ""
+    for w in tokenizedInput:
+        lemmedword = wordnet_lemmatizer.lemmatize(w)
+        cleaned_input = cleaned_input + " " + lemmedword
+    cleaned_input = stemSentence(cleaned_input)
+    cleanedTokens = word_tokenize(cleaned_input)
+
+    temp_TFIDF_data = np.zeros(len(search_database))
+    for w in cleanedTokens:
+        current_document_number = 0
+        term_frequency = 0
+        document_frequency = 0
+
+        for document in processedData.iloc[:, 1]:
+            try:
+                term_frequency += document.get(w)
+                document_frequency += 1
+            except:
+                term_frequency += 0
+
+            term_frequency = term_frequency / len(word_tokenize(data.iloc[current_document_number, 0]))
+            temp_TFIDF_data[current_document_number] += term_frequency
+            current_document_number += 1
+
+        try:
+            document_frequency = np.log(len(data) / document_frequency)
+            search_database.iloc[:, 2] += temp_TFIDF_data * document_frequency
+        except:
+            print(w, " was not found in any TED talks")
+    search_database = search_database.sort_values(by=['Term Frequency'], ascending=False)
+    return search_database.iloc[0:10, 0]
+        # print(document_frequency)
+
+
+def searchengine(numberOfSearches):
+    searchQuery = search_interface(numberOfSearches)
+    print(document_finder(searchQuery))
+
+    print("Do you want to search for more TED talks?")
+    inputText = input("Y/N:")
+
+    anotherRound = True
+    while anotherRound == True:
+        if inputText == 'Y':
+            searchengine(2)
+        elif inputText == 'N':
+            anotherRound = False
+        else:
+            print('Im not sure what you said, please type Y for yes or N for no')
+            print('Do you want to search for more TED talks?')
+            print("Y/N:")
+    print(search_interface(0))
+
+# runs the code :)
+searchengine(1)
+
+
+
