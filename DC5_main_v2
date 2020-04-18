@@ -147,6 +147,7 @@ def searchengine(numberOfSearches):
             print('Do you want to search for more TED talks?')
             print("Y/N:")
     print(search_interface(0))
+    exit()
 
 # runs the code :)
 searchengine(1)
